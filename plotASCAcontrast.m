@@ -1,5 +1,9 @@
 function plotASCAcontrast(results,alpha)
 
+% Plots the hierachical clusterring of the mean levels within the factor of
+% interest, and puts on the inferential statistics onto the graph. 
+% at level alpha (default = 0.05) the line is emphaised. 
+
 if nargin==1
     alpha = 0.05;
 end

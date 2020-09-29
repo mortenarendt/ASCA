@@ -1,5 +1,16 @@
 function results = ASCAcontrast(res1, which_factor)
 
+% Contrast estimation based on an ASCA model output. 
+% Using the marginal effect matrix associated with the factor
+% (which_factor), First a hieracical cluster is produced. At each hight of
+% this dendrogram, the levels below are lumped together, and a marginal
+% test is run towards the full model. 
+% I/O: 
+% Input: res1 = ASCAcat() output, which_factor = the factor of
+% interest
+% Output: results: dendrogram, and test at each level. 
+% plot the results by: plotASCAcontrast(results) 
+
 results.originalmodel = res1; 
 results.which_factor = which_factor; 
 M = res1.model;
