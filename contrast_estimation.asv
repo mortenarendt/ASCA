@@ -1,0 +1,34 @@
+close all hidden; clear; clc
+
+% test LMM for crossed designs, where the nested factor is null, but the
+% coarser increase in level (x-axis)
+
+%%% settings
+nperm = 100; % number of permutations in the ASCA model
+
+p = 20;
+% make nested mixed design with null fixed factor but significant random factor
+k = 6; % individuals
+rep = 10; % repeated measures
+D = fullfact([rep k]);
+
+Dtrue = D;
+Dtrue(ismember(Dtrue(:,1),[1 2 3]),1) = 1;
+
+% MODEL
+M = [1 0; 0 1];
+
+[X DM Xm] = simulateData(Dtrue,M,[0.1 0.1 .2],p,[]);
+
+plotit=0;
+opt = ASCAcat('options');
+opt.nperm = nperm;
+opt.showtable = 0;
+
+opt.rndfac = [];
+res1= ASCAcat(X,D,M, opt);
+
+rescont = ASCAcontrast(res1,1);
+%%
+plotASCAcontrast(rescont); 
+shg
