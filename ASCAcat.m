@@ -8,7 +8,7 @@ function results = ASCAcat(X,dep,M,deplb,options)
 % deplb (m,1) labels for the individual design vectors
 % with the two main effects (row 1 and 2) and interaction between those
 % (row 3)
-% options = ASCAcat('options') provides a list of algorithmic options. 
+% options = ASCAcat('options') provides a list of algorithmic options.
 
 %%%%% Check the input %%%%%%
 
@@ -60,6 +60,14 @@ if nargin==4
         options = ASCAcat('options');
     end
 end
+
+% expand nperm to vector of length == number of terms
+if numel(options.nperm)==1
+    nterms = size(M,1);
+    options.nperm = ones(1,nterms)*options.nperm;
+end
+
+
 
 % remove samples with missing design info
 if size(dep,2)==1
@@ -221,25 +229,25 @@ for i=1:nterms
             res{i} = ANOVApermutationtest(X,...
                 PX([unique([nestedeff whichother(:)']) i]),...
                 D([unique([nestedeff whichother(:)']) i]),...
-                options.nperm,0,0,IDvec(:,i),IDvec(:,whichrndterm)); % calculate statistical inference.
+                options.nperm(i),0,0,IDvec(:,i),IDvec(:,whichrndterm)); % calculate statistical inference.
         elseif ~isempty(options.rndfac) & isempty(whichrndterm)
             % if there is mixed effects but crossed with systematic factors, use this in the permutation testing
             res{i} = ANOVApermutationtest(X,...
                 PX([unique([nestedeff whichother(:)']) i]),...
                 D([unique([nestedeff whichother(:)']) i]),...
-                options.nperm,0,0,IDvec(:,i),IDvec(:,rndterms)); % calculate statistical inference.
+                options.nperm(i),0,0,IDvec(:,i),IDvec(:,rndterms)); % calculate statistical inference.
         else
             if contterm(i)==1
                 if options.contvaraslinear==0
                     res{i} = ANOVApermutationtestcont(X,...
                         PX([unique([nestedeff whichother(:)']) i]),...
                         D([unique([nestedeff whichother(:)']) i]),...
-                        options.nperm,contterm(i), options.prop_matching, options.slopecorr); % calculate statistical inference.
+                        options.nperm(i),contterm(i), options.prop_matching, options.slopecorr); % calculate statistical inference.
                 else
                     res{i} = ANOVApermutationtest(X,...
                         PX([unique([nestedeff whichother(:)']) i]),...
                         D([unique([nestedeff whichother(:)']) i]),...
-                        options.nperm,contterm(i), options.prop_matching); % calculate statistical inference.
+                        options.nperm(i),contterm(i), options.prop_matching); % calculate statistical inference.
                 end
                 res{i}.israndomfactor = 0;
             else
@@ -247,7 +255,7 @@ for i=1:nterms
                 res{i} = ANOVApermutationtest(X,...
                     PX([unique([nestedeff whichother(:)']) i]),...
                     D([unique([nestedeff whichother(:)']) i]),...
-                    options.nperm,contterm(i), options.prop_matching); % calculate statistical inference.
+                    options.nperm(i),contterm(i), options.prop_matching); % calculate statistical inference.
                 res{i}.israndomfactor = 0;
             end
             
