@@ -1,2 +1,2 @@
 # ASCA
-Anova Simultanous Component Analysis for mixed models including continous covariates
+Anova Simultanous Component Analysis for mixed models including continous covariates and stuff
