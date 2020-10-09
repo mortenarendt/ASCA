@@ -209,6 +209,7 @@ for i=1:nterms
         Dmarg{i} = D{i};
     else
         Dmarg{i} = DefM*D{i};
+        Dmarg{i} = (eye(n) - PM*pinv(PM))*D{i};
     end
     df(i) = rank(Dmarg{i}); % marginal degrees of freedom
     
@@ -306,8 +307,15 @@ for i=1:length(Dmarg)
     practicalrank = rank(Dmarg{i});
     % can we estimate it?
     ss = svds(Dmarg{i}'*Dmarg{i},practicalrank);
+    %if i==3
+        %[i rank(D{i}) practicalrank ss']
+    %end
     balancedness(i) =  ss(end) / ss(1);
+    res{i}.balancedness = balancedness(i);
+    res{i}.balancedness_singval = ss';
 end
+
+results.balancedness = balancedness;
 
 % % Check SS consistency
 % sum(ssdd) + SSE, SStot
