@@ -17,8 +17,10 @@ if nargin==1 && ischar(X)
     results.nperm = 1000; % number of permutations
     results.deflate = 1; % deflate to get marginal
     results.prop_matching = 0; % do not do prop_matching in the randomization
+    results.prop_matching_cov = []; % do not do prop_matching in the randomization
     results.rndfac = []; % Default is no mixed effects.
     results.contvar = []; % Defalt is all design variables being factors
+    results.cont_bandwith = []; % Defalt is all design variables being factors
     results.showtable = 1; % Print ANOVA table to screen
     results.slopecorr = 1; % make a scalar slope correction in the continous kernel estimation
     results.contvaraslinear = 0;
@@ -122,7 +124,7 @@ for i=1:nterms
         if ismember(iddep,options.contvar)
             % continous variable
             if options.contvaraslinear ==0
-                PX{i} = setCovariateKernel(dep(:,iddep));
+                PX{i} = setCovariateKernel(dep(:,iddep),options.cont_bandwith(options.contvar==iddep));
                 D{i} = dep(:,iddep);
             else
                 PX{i} = [ones(n,1) dep(:,iddep)]*pinv([ones(n,1) dep(:,iddep)]);
@@ -209,7 +211,9 @@ for i=1:nterms
         Dmarg{i} = D{i};
     else
         Dmarg{i} = DefM*D{i};
-        Dmarg{i} = (eye(n) - PM*pinv(PM))*D{i};
+        if ~isempty(PM)
+            Dmarg{i} = (eye(n) - PM*pinv(PM))*D{i};
+        end
     end
     df(i) = rank(Dmarg{i}); % marginal degrees of freedom
     
@@ -217,7 +221,7 @@ for i=1:nterms
     
     if ismember(rndterms,i)
         % if term is random, then DO NOT test it, but still return its SS values
-        res{i} = ANOVApermutationtest(X,...
+        res{i} = ANOVApermutatwiontest(X,...
             PX(i),D(i),0,0,0);
         res{i}.israndomfactor = 1;
     else
@@ -243,21 +247,23 @@ for i=1:nterms
                     res{i} = ANOVApermutationtestcont(X,...
                         PX([unique([nestedeff whichother(:)']) i]),...
                         D([unique([nestedeff whichother(:)']) i]),...
-                        options.nperm(i),contterm(i), options.prop_matching, options.slopecorr); % calculate statistical inference.
+                        options.nperm(i),contterm(i), options.prop_matching,options.slopecorr,[], options.prop_matching_cov); % calculate statistical inference.
                 else
                     res{i} = ANOVApermutationtest(X,...
                         PX([unique([nestedeff whichother(:)']) i]),...
                         D([unique([nestedeff whichother(:)']) i]),...
-                        options.nperm(i),contterm(i), options.prop_matching); % calculate statistical inference.
+                        options.nperm(i),contterm(i), options.prop_matching, [],[], options.prop_matching_cov); % calculate statistical inference.
                 end
+                
                 res{i}.israndomfactor = 0;
             else
                 % normal vanilla ANOVA stats
                 res{i} = ANOVApermutationtest(X,...
                     PX([unique([nestedeff whichother(:)']) i]),...
                     D([unique([nestedeff whichother(:)']) i]),...
-                    options.nperm(i),contterm(i), options.prop_matching); % calculate statistical inference.
+                    options.nperm(i),contterm(i), options.prop_matching,[],[],options.prop_matching_cov); % calculate statistical inference.
                 res{i}.israndomfactor = 0;
+                
             end
             
         end
@@ -308,7 +314,7 @@ for i=1:length(Dmarg)
     % can we estimate it?
     ss = svds(Dmarg{i}'*Dmarg{i},practicalrank);
     %if i==3
-        %[i rank(D{i}) practicalrank ss']
+    %[i rank(D{i}) practicalrank ss']
     %end
     balancedness(i) =  ss(end) / ss(1);
     res{i}.balancedness = balancedness(i);

@@ -7,7 +7,7 @@ function [K h] = setCovariateKernel(x,h)
 n = length(x);
 x = x(:);
 
-if nargin==1
+if nargin==1 | h<0
     h=median(abs(x-median(x)))/0.6745*(4/3/n)^0.2;
 end
 

@@ -6,15 +6,15 @@ function plotASCAscores(m,eff,cmp)
 %   eff = which model parameter to plot 
 %   cmp = which components - default 1 vs 2
 
-if nargin==2; 
-    cmp = [1 2]
+if nargin==2
+    cmp = [1 2];
 end
 
 u = m.Effects{eff}.loads{1};
 EV = m.Effects{eff}.varExp; 
 cl = m.dependent_var(:,eff);
 tit = m.dependent_var_lb{eff}; 
-EVeff = str2num(cell2num(m.ANOVAtab(ismember(m.ANOVAtab(:,1),tit),3)))*100;
+EVeff = str2num(cell2mat(m.ANOVAtab(ismember(m.ANOVAtab(:,1),tit),3)))*100;
 
 if cmp(2) > size(u,2)
     % add a vector from the residual matrix
