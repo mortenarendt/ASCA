@@ -1,4 +1,4 @@
-function res = ANOVApermutationtest(x,PX,D,nperm,contvar,prop_matching,classD,nestedfac)
+function res = ANOVApermutationtest(x,PX,D,nperm,contvar,prop_matching,classD,nestedfac,propMcov )
 
 % x - Data
 % PX is a list of projection matrices, one for each term in the entire anova model
@@ -27,6 +27,9 @@ else
     d2 = mkdesignmatrix(nestedfac);
     isnested = (rank(d2)==rank([d1 d2]))+0;
     
+    if isempty(d2) 
+        isnested = 0; 
+    end
     % is it crossed? or only nested
     if isnested==0
         iscrossed = 1;
@@ -40,9 +43,9 @@ end
 
 
 [P1 P2] = blockwisehat2(D); % returns P2 - the factor of interest (last element of PX) and P1 the rest.
-%E = (eye(n) - P1 - P2)*x; 
+%E = (eye(n) - P1 - P2)*x;
 %[P1n P2n] = blockwisehat2(D([2 1 3]));
-%E2 = (eye(n) - P1n - P2n)*x; 
+%E2 = (eye(n) - P1n - P2n)*x;
 %plot(E(:),E2(:),'*'); shg
 %%
 %P1 = PX{1}; P2 = PX{2};
@@ -69,9 +72,11 @@ res.Xd_marginal = Xd;
 
 
 E3f = (eye(n) - P1 - P2)*x;
+EtE = E3f'*E3f;  
 E2f = (eye(n) - P1)*x;
+sse3f = trace(EtE);
+diagEtEm = diag(EtE); 
 
-sse3f = trace(E3f'*E3f);
 sse2f = trace(E2f'*E2f);
 
 Fm      = ((sse2f - sse3f)      /(df3f - df2f))/(sse3f/(n-df3f));
@@ -94,54 +99,14 @@ end
 
 
 %% setup exchangability kernel probabilty
-% predict the class member ship of the last design in D given all others
-%Y = D{end};
-%Yhat = zeros(size(Y));
-%DD = ones(n,1);
-%for i=1:(length(D)-1)
-%    DD = [DD D{i}];
-%end
+% predict the class member ship given the propmatch matrix
 
-%for i=1:size(Y,2)
-%    b = glmfit(DD,Y(:,i),'binomial','link','logit');
-%    Yhat(:,i) = glmval(b,DD,'logit') + 0.01;
-%end
-
-%Yhat = normaliz(Yhat);
-
-% between all pairs, calculate the kullback-leiber divergence metric.
-%for j=1:n
-%    KLdist(:,j)=KLDiv(Yhat,Yhat(j,:));
-%end
-% transform the metric into probabilities of exchangegability
-
-% KLD is asymptotically distributed as a scaled (non-central) chi-square
-% with one degree of freedom (ref: British Journal of Mathematical and Statistical Psychology (2011), 64, 291?309)
-%hist(KLdist(:),100);
-%
-%[~,idd] =  sort(Yhat(:,1));
-%Pz_x = 1 - chi2cdf(KLdist,1);
-%Pz_x = normaliz(Pz_x);
-%Pz_x = Pz_x(idd,idd);
-
-%for ii=1:10000
-%    ID(ii,:) = permutesampler(Pz_x);
-%end
-
-
-%% sum(Pz_x ,2)
-%plot(KLdist(:),Pz_x(:),'*'); shg
-%
-
-%gm = exp(mean(log(Yhat),2));
-%Yhat = diag(1./gm)*Yhat;
-%Dst = squareform(pdist(Yhat));
-
-%Pz_x = 1 - normcdf(Dst / (sqrt(2/n)));
-%Pz_x = normaliz(Pz_x)
-%
-
+if prop_matching == 1
+    [Pz_x, pYhat, propSWAP] = get_exchangability_kernelprobabilty(propMcov,D{end});
+    propSWAP = TSnorm( propSWAP);
+end
 % permutation
+diagEtEperm = []; 
 for i=1:nperm
     if isnested==1 && iscrossed==0
         % testing of a systematic effect nested within a random one
@@ -153,14 +118,40 @@ for i=1:nperm
         % Normal ANOVA design _total_ permutation
         %%% propensity matching
         if prop_matching==1
-            id = permutesampler(Pz_x);
+            %%
+            
+            %rng(123)
+            %id0 = permutesampler(Pz_x);
+            %rng(123)
+            %id = pairwiseswapper(propSWAP);
+            %%
+            %for jj = 1:100
+            id = permutesampler(propSWAP);
+            
+            %prp(jj,:) = [propSWAP(2,id(2)) mean(propSWAP(2,:))];
+            %end
+            
+            %
+            %plot(Pz_x(:),propSWAP(:),'.'); shg
+            % compare
+            %[id id0]
+            %%
+            %[u s v ] = svds(auto(auto(Pz_x')'),2);
+            %id2 = abs(D{end}(id,1) - D{end}(:,1));
+            %scatter(u(:,1),u(:,2),[],id2); shg
+            %
+            
         else
             %%% all equally likely
             id = randperm(n);
         end
     end
     
-    ss3fp(i) = getSSE(P2,P1,defM1,x,id,contvar);
+%    if unique(D{end}(id,1) - D{end}(:,1))==0
+%        'no samples are swapped btw groups - I.e. defacto similar test'
+%    end
+    
+    [ss3fp(i) diagEtEperm(i,:)] = getSSE(P2,P1,defM1,x,id,contvar);
     %ss3fp(i) = getSSE(P2,P1,defM1,x,id2,contvar);
     %ss3fp_pm(i) = getSSE(P2,P1,defM1,x,id1,contvar);
     
@@ -181,16 +172,23 @@ for i=1:nperm
     end
 end
 
-
 if nperm==0
     res.p = NaN;
     res.permutationSSE = NaN;
     res.Fperm = NaN;
     res.p_F = NaN;
+    res.diagEtEm = NaN;
+    res.diagEtEperm = NaN; 
+    res.individual_variable_pv_freq  = NaN; 
 else
+    indivP = diagEtEperm - ones(nperm,1)*diagEtEm';
+    indivP  = (1 + sum(indivP<0))/(1+nperm); 
     res.nperm = length(Fp);
     res.permutationSSE = ss3fp;
-    res.p = (sum(ss3fp<sse3f)+1)/(res.nperm+1);
+    res.diagEtEm = diagEtEm;
+    res.diagEtEperm = diagEtEperm;
+    res.individual_variable_pv_freq = indivP;   
+    res.p = (sum(ss3fp<=sse3f)+1)/(res.nperm+1);
     res.Fperm = Fp;
     res.p_F = (sum(Fp>Fm)+1)/(res.nperm+1);
 end
@@ -213,6 +211,19 @@ res.prop_matching = prop_matching;
 %res.sse_perm =  ss3fp;
 %res.sse_perm_propmatch =  ss3fp_pm;
 % res.timeconsumption = tm;
+
+%
+[u s v0] = svds(res.Xd_crude,1);
+
+% inverse 
+z = abs(norminv(res.individual_variable_pv_freq/2)); 
+[u s v1] = svds(res.Xd_crude*diag(z),1);
+res.v0 = v0; 
+res.v1 = v1;  
+%plot(v1,v0,'*'); shg
+%
+%plot(res.individual_variable_pv_freq,z,'.'); shg
+
 
 if plotit==1
     plotANOVApermutationtest(res)
@@ -257,7 +268,7 @@ n = size(X,2);
 Xn  = X./(sum(X,2)*ones(1,n));
 
 
-function sse = getSSE(P2,P1,defM1,x,id,contvar)
+function [sse diagEtE] = getSSE(P2,P1,defM1,x,id,contvar)
 
 n = size(P2,1);
 if contvar==0
@@ -266,4 +277,6 @@ elseif contvar==1
     P2p = P2(id,id)*defM1;
 end
 E3fp = (eye(n) - P1 - P2p)*x;
-sse = trace(E3fp'*E3fp);
+EtE = E3fp'*E3fp;
+diagEtE = diag(EtE ); 
+sse = trace(EtE);
