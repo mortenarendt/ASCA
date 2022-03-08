@@ -77,14 +77,29 @@ E2f = (eye(n) - P1)*x;
 sse3f = trace(EtE);
 diagEtEm = diag(EtE); 
 
+% svd
+[~, ~, v] = svds(Xd,rank(Xd));
+Esca = E3f*v ; 
+ssesca =  trace(Esca'*Esca); 
+
+% S2N sca
+t = P2*x*v;
+S2Nsca = trace(t'*t) / trace(Esca'*Esca);
+S2Ndt = ssD  / sse3f;
+
 sse2f = trace(E2f'*E2f);
 
 Fm      = ((sse2f - sse3f)      /(df3f - df2f))/(sse3f/(n-df3f));
+
+H = E2f - E3f; H = H'*H; 
+res.modelmanovateststat = getMANOVAstats(H,EtE);
 
 res.marginalSSQ = max(sse2f - sse3f,0);
 res.modelSSE = sse3f;
 res.nperm = nperm;
 res.rank = df3f; % model rank
+res.S2Ndataspace = S2Ndt;
+res.S2Nsca = S2Nsca;
 res.totVar = trace(x*x');
 res.Fmodel = Fm;
 res.dftop = (df3f - df2f);
@@ -126,8 +141,8 @@ for i=1:nperm
             %id = pairwiseswapper(propSWAP);
             %%
             %for jj = 1:100
-            id = permutesampler(propSWAP);
-            
+                id = permutesampler(propSWAP);
+
             %prp(jj,:) = [propSWAP(2,id(2)) mean(propSWAP(2,:))];
             %end
             
@@ -151,7 +166,7 @@ for i=1:nperm
 %        'no samples are swapped btw groups - I.e. defacto similar test'
 %    end
     
-    [ss3fp(i) diagEtEperm(i,:)] = getSSE(P2,P1,defM1,x,id,contvar);
+    [ss3fp(i) sssca3fp(i) diagEtEperm(i,:) E3fp EtEp] = getSSE(P2,P1,defM1,x,id,contvar);
     %ss3fp(i) = getSSE(P2,P1,defM1,x,id2,contvar);
     %ss3fp_pm(i) = getSSE(P2,P1,defM1,x,id1,contvar);
     
@@ -165,6 +180,8 @@ for i=1:nperm
     
     Fp(i) = ((sse2f - ss3fp(i))/(df3f - df2f))/(ss3fp(i)/(n-df3f));
     
+    H = E2f - E3fp; H = H'*H; 
+    permMANOVAstat(i,:) = getMANOVAstats(H,EtEp);
     % KILL the loop if the p-value is screamingly non-significant
     if sum(Fp>Fm) > 2*alpha_cut*nperm
         length(Fp)
@@ -185,10 +202,12 @@ else
     indivP  = (1 + sum(indivP<0))/(1+nperm); 
     res.nperm = length(Fp);
     res.permutationSSE = ss3fp;
+    res.permMANOVAstat = permMANOVAstat; 
     res.diagEtEm = diagEtEm;
     res.diagEtEperm = diagEtEperm;
     res.individual_variable_pv_freq = indivP;   
     res.p = (sum(ss3fp<=sse3f)+1)/(res.nperm+1);
+    res.p_sca = (sum(sssca3fp<=ssesca)+1)/(res.nperm+1);
     res.Fperm = Fp;
     res.p_F = (sum(Fp>Fm)+1)/(res.nperm+1);
 end
@@ -268,15 +287,22 @@ n = size(X,2);
 Xn  = X./(sum(X,2)*ones(1,n));
 
 
-function [sse diagEtE] = getSSE(P2,P1,defM1,x,id,contvar)
-
+function [sse ssesca diagEtE E3fp EtE] = getSSE(P2,P1,defM1,x,id,contvar)
 n = size(P2,1);
 if contvar==0
     P2p = (defM1*P2(id,id))*pinv(defM1*P2(id,id));
 elseif contvar==1
     P2p = P2(id,id)*defM1;
 end
+
+
 E3fp = (eye(n) - P1 - P2p)*x;
 EtE = E3fp'*E3fp;
 diagEtE = diag(EtE ); 
 sse = trace(EtE);
+% svd
+[~, ~, v] = svds(P2p*x,rank(P2p*x));
+Esca = E3fp*v ; 
+ssesca =  trace(Esca'*Esca); 
+
+
