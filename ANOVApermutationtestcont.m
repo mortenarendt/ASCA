@@ -171,18 +171,22 @@ for i=1:nperm
     end
 end
 
+res.S2Ndataspace = NaN; % for now just leave this out. 
+res.S2Nsca = NaN; 
 
 if nperm==0
     res.p = NaN;
     res.permutationSSE = NaN;
     res.Fperm = NaN;
     res.p_F = NaN;
+    res.p_sca = NaN; 
 else
     res.nperm = length(Fp);
     res.permutationSSE = ss3fp;
     res.p = (sum(ss3fp<sse3f)+1)/(res.nperm+1);
     res.Fperm = Fp;
     res.p_F = (sum(Fp>Fm)+1)/(res.nperm+1);
+    res.p_sca = NaN; % for now just leave this out. 
 end
 
 % estimate F distr parameters
